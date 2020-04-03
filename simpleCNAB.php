@@ -6,13 +6,13 @@ class simpleCNAB {
     public $cnabType = 400; //240 | 400 
     public $cnabLine;
     public $bankNumber;
-    public $optionType = 'readRemittance'; //readRemittance | writeRemittance | readReturn | writeReturn
+    public $optionType;// = 'readRemittance'; //readRemittance | writeRemittance | readReturn | writeReturn
 
     public function getCNABFile(){
         if($this->cnabFile = fopen($this->pathFile, 'r')){
-            return $this->getCNABInfo();
+            return json_encode($this->getCNABInfo());
         } else {
-            return (object) ['success' => false, 'error' => 'Não foi possível abrir o arquivo'];
+            return json_encode( ['success' => false, 'error' => 'Não foi possível abrir o arquivo'] );
         }
     }
 
@@ -21,13 +21,13 @@ class simpleCNAB {
     }
 
     public function getCNABInfo(){
-        $getBankNumber = $this->getCNABBank();
-        if($getBankNumber->success){
+        $getBankNumber = (object) $this->getCNABBank();
+        if( $getBankNumber->success ){
             switch($getBankNumber->bankNumber){
                 case '237': //Banco Bradesco
                     switch($getBankNumber->cnabType){
                         case 240:
-                            return (object) ['success' => false, 'error' => 'Tipo de CNAB '.$getBankNumber->cnabType.' não implementado para o banco '.$getBankNumber->bankNumber];
+                            return ['success' => false, 'error' => 'Tipo de CNAB '.$getBankNumber->cnabType.' não implementado para o banco '.$getBankNumber->bankNumber];
                         break;
                         case 400:
                             switch($this->optionType){
@@ -38,17 +38,17 @@ class simpleCNAB {
                                     return $this->readReturnBradesco400();
                                 break;
                                 default:
-                                    return (object) ['success' => false, 'error' => 'Opção de operação '.$this->optionType.' não implementada para o banco '.$getBankNumber->bankNumber];
+                                    return ['success' => false, 'error' => 'Opção de operação '.$this->optionType.' não implementada para o banco '.$getBankNumber->bankNumber];
                                 break;
                             }
                         break;
                         default:
-                            return (object) ['success' => false, 'error' => 'Tipo de CNAB '.$getBankNumber->cnabType.' não implementado para o banco '.$getBankNumber->bankNumber];
+                            return ['success' => false, 'error' => 'Tipo de CNAB '.$getBankNumber->cnabType.' não implementado para o banco '.$getBankNumber->bankNumber];
                         break;
                     }
                 break;
                 default:
-                    return (object) ['success' => false, 'error' => 'Banco '.$getBankNumber->bankNumber.' não suportado'];
+                    return ['success' => false, 'error' => 'Banco '.$getBankNumber->bankNumber.' não suportado'];
                 break;
             }
         } else {
@@ -64,18 +64,18 @@ class simpleCNAB {
             switch($this->cnabType){
                 case 240:
                     $this->bankNumber = mb_substr($this->cnabLine[0],0,3);
-                    return (object) ['success' => true, 'bankNumber' => $this->bankNumber, 'cnabType' => 240];
+                    return ['success' => true, 'bankNumber' => $this->bankNumber, 'cnabType' => 240];
                 break;
                 case 400:
-                    $this->bankNumber = mb_substr($this->cnabLine[0],77,3);
-                    return (object) ['success' => true, 'bankNumber' => $this->bankNumber, 'cnabType' => 400];
+                    $this->bankNumber = mb_substr($this->cnabLine[0],76,3);
+                    return ['success' => true, 'bankNumber' => $this->bankNumber, 'cnabType' => 400];
                 break;
                 default:
-                    return (object) ['success' => false, 'error' => 'Tipo de CNAB não implementado'];
+                    return ['success' => false, 'error' => 'Tipo de CNAB não implementado'];
                 break;
             }
         } else {
-            return (object) ['success' => false, 'error' => 'Arquivo sem linhas definidas'];
+            return ['success' => false, 'error' => 'Arquivo sem linhas definidas'];
         }
     }
 
@@ -85,17 +85,14 @@ class simpleCNAB {
             array_push($cnabLines, fgets($this->cnabFile, 444));
         }
         fclose($this->cnabFile);
-        return $cnabLines;
-    }
-
-
-   
+        return array_map("utf8_encode",$cnabLines);
+    }  
 
     public function readRemittanceBradesco400(){
         $header   = [];
         $title    = [];
         $trailler = [];
-        $idTit =   -1;
+        $idTit    = -1;
         for($i = 0; $i < sizeof($this->cnabLine); $i++ ){
             switch(mb_substr($this->cnabLine[$i],   0,   1) ){
                 case "0": //Register header
@@ -120,7 +117,7 @@ class simpleCNAB {
                 case "1": //Register type 1
                     $idTit++;
                     $title[$idTit] = [
-                        'idTit'                                 => $idTit,
+                        'idTit'                                 => $idTit+1,
                         'identificacaoRegistroR1'               => mb_substr($this->cnabLine[$i],            0,   1),
                         'agenciaDebito'                         => trim(mb_substr($this->cnabLine[$i],       1,   5)),
                         'digitoAgenciaDebito'                   => mb_substr($this->cnabLine[$i],            6,   1),
@@ -166,47 +163,47 @@ class simpleCNAB {
                         'sufixoCep'                             => mb_substr($this->cnabLine[$i],          331,   3),
                         'sacadorAvalistaOuSegundaMensagem'      => trim(mb_substr($this->cnabLine[$i],     334,  60)),
                         'numeroSequencialRegistroR1'            => mb_substr($this->cnabLine[$i],          394,   6),
-                        'chaveNFE'                              => mb_substr($this->cnabLine[$i],          400,  44),
+                        'chaveNFE'                              => str_replace("\r\n", '', mb_substr($this->cnabLine[$i], 400,  44)),
                     ];
                 break;
                 case "2": //Register type 2
-                    array_push($title[$idTit], [
-                        'identificacaoRegistroR2'               => mb_substr($this->cnabLine[$i],            0,   1),
-                        "mensagem1"                             => trim(mb_substr($this->cnabLine[$i],       1,  80)),
-                        "mensagem2"                             => trim(mb_substr($this->cnabLine[$i],      82,  80)),
-                        "mensagem3"                             => trim(mb_substr($this->cnabLine[$i],     161,  80)),
-                        "mensagem4"                             => trim(mb_substr($this->cnabLine[$i],     241,  80)),
-                        "dataLimiteConcessaoDesconto2"          => mb_substr($this->cnabLine[$i],          321,   6),
-                        "valorDesconto2"                        => ((float) mb_substr($this->cnabLine[$i], 327,  13)) / 100,
-                        "dataLimiteConcessaoDesconto3"          => mb_substr($this->cnabLine[$i],          340,   6),
-                        "valorDesconto3"                        => ((float) mb_substr($this->cnabLine[$i], 346,  13)) / 100,
-                        "reservaR2"                             => mb_substr($this->cnabLine[$i],          359,   7),
-                        "carteiraR2"                            => mb_substr($this->cnabLine[$i],          366,   3),
-                        "agenciaR2"                             => trim(mb_substr($this->cnabLine[$i],     369,   5)),
-                        "contaCorrenteR2"                       => trim(mb_substr($this->cnabLine[$i],     374,   7)),
-                        "digitoCCR2"                            => trim(mb_substr($this->cnabLine[$i],     381,   1)),
-                        "nossoNumeroR2"                         => trim(mb_substr($this->cnabLine[$i],     382,  11)),
-                        "dacNossoNumeroR2"                      => mb_substr($this->cnabLine[$i],          393,   1),
-                        "numeroSequencialRegistroR2"            => mb_substr($this->cnabLine[$i],          394,   6)
-                    ]);
+                    if(isset($title[$idTit])){
+                        $title[$idTit]['identificacaoRegistroR2']               = mb_substr($this->cnabLine[$i],            0,   1);
+                        $title[$idTit]["mensagem1"]                             = trim(mb_substr($this->cnabLine[$i],       1,  80));
+                        $title[$idTit]["mensagem2"]                             = trim(mb_substr($this->cnabLine[$i],      81,  80));
+                        $title[$idTit]["mensagem3"]                             = trim(mb_substr($this->cnabLine[$i],     161,  80));
+                        $title[$idTit]["mensagem4"]                             = trim(mb_substr($this->cnabLine[$i],     241,  80));
+                        $title[$idTit]["dataLimiteConcessaoDesconto2"]          = mb_substr($this->cnabLine[$i],          321,   6);
+                        $title[$idTit]["valorDesconto2"]                        = ((float) mb_substr($this->cnabLine[$i], 327,  13)) / 100;
+                        $title[$idTit]["dataLimiteConcessaoDesconto3"]          = mb_substr($this->cnabLine[$i],          340,   6);
+                        $title[$idTit]["valorDesconto3"]                        = ((float) mb_substr($this->cnabLine[$i], 346,  13)) / 100;
+                        $title[$idTit]["reservaR2"]                             = mb_substr($this->cnabLine[$i],          359,   7);
+                        $title[$idTit]["carteiraR2"]                            = mb_substr($this->cnabLine[$i],          366,   3);
+                        $title[$idTit]["agenciaR2"]                             = trim(mb_substr($this->cnabLine[$i],     369,   5));
+                        $title[$idTit]["contaCorrenteR2"]                       = trim(mb_substr($this->cnabLine[$i],     374,   7));
+                        $title[$idTit]["digitoCCR2"]                            = trim(mb_substr($this->cnabLine[$i],     381,   1));
+                        $title[$idTit]["nossoNumeroR2"]                         = trim(mb_substr($this->cnabLine[$i],     382,  11));
+                        $title[$idTit]["dacNossoNumeroR2"]                      = mb_substr($this->cnabLine[$i],          393,   1);
+                        $title[$idTit]["numeroSequencialRegistroR2"]            = mb_substr($this->cnabLine[$i],          394,   6);
+                    }
                 break;
                 case "7": //Register type 7
-                    array_push($title[$idTit], [
-                        'identificacaoRegistroR7'               => mb_substr($this->cnabLine[$i],            0,    1),
-                        "enderecoSacadorAvalista"               => trim(mb_substr($this->cnabLine[$i],      1,    45)),
-                        "cepSacadorAvalista"                    => trim(mb_substr($this->cnabLine[$i],     46,     5)),
-                        "sufixoCepSacadorAvalista"              => trim(mb_substr($this->cnabLine[$i],     51,     3)),
-                        "cidadeSacadorAvalista"                 => trim(mb_substr($this->cnabLine[$i],     54,    20)),
-                        "ufSacadorAvalista"                     => trim(mb_substr($this->cnabLine[$i],     74,     2)),
-                        "reservaR7"                             => trim(mb_substr($this->cnabLine[$i],     76,   290)),
-                        "carteiraR7"                            => trim(mb_substr($this->cnabLine[$i],    366,     3)),
-                        "agenciaR7"                             => trim(mb_substr($this->cnabLine[$i],    369,     5)),
-                        "contaCorrenteR7"                       => trim(mb_substr($this->cnabLine[$i],    374,     7)),
-                        "digitoCCR7"                            => trim(mb_substr($this->cnabLine[$i],    381,     1)),
-                        "nossoNumeroR7"                         => trim(mb_substr($this->cnabLine[$i],    382,    11)),
-                        "dacNossoNumeroR7"                      => trim(mb_substr($this->cnabLine[$i],    393,     1)),
-                        "numeroSequencialRegistroR7"            => mb_substr($this->cnabLine[$i],         394,     6)
-                    ]);
+                    if(isset($title[$idTit])){
+                        $title[$idTit]['identificacaoRegistroR7']               = mb_substr($this->cnabLine[$i],            0,    1);
+                        $title[$idTit]["enderecoSacadorAvalista"]               = trim(mb_substr($this->cnabLine[$i],      1,    45));
+                        $title[$idTit]["cepSacadorAvalista"]                    = trim(mb_substr($this->cnabLine[$i],     46,     5));
+                        $title[$idTit]["sufixoCepSacadorAvalista"]              = trim(mb_substr($this->cnabLine[$i],     51,     3));
+                        $title[$idTit]["cidadeSacadorAvalista"]                 = trim(mb_substr($this->cnabLine[$i],     54,    20));
+                        $title[$idTit]["ufSacadorAvalista"]                     = trim(mb_substr($this->cnabLine[$i],     74,     2));
+                        $title[$idTit]["reservaR7"]                             = trim(mb_substr($this->cnabLine[$i],     76,   290));
+                        $title[$idTit]["carteiraR7"]                            = trim(mb_substr($this->cnabLine[$i],    366,     3));
+                        $title[$idTit]["agenciaR7"]                             = trim(mb_substr($this->cnabLine[$i],    369,     5));
+                        $title[$idTit]["contaCorrenteR7"]                       = trim(mb_substr($this->cnabLine[$i],    374,     7));
+                        $title[$idTit]["digitoCCR7"]                            = trim(mb_substr($this->cnabLine[$i],    381,     1));
+                        $title[$idTit]["nossoNumeroR7"]                         = trim(mb_substr($this->cnabLine[$i],    382,    11));
+                        $title[$idTit]["dacNossoNumeroR7"]                      = trim(mb_substr($this->cnabLine[$i],    393,     1));
+                        $title[$idTit]["numeroSequencialRegistroR7"]            = mb_substr($this->cnabLine[$i],         394,     6);
+                    }
                 break;
                 case "9": //Register trailler
                     $trailler = [
@@ -219,16 +216,16 @@ class simpleCNAB {
         }
 
         if( $header != '' and  $title != '' and $trailler != '' ){
-            return (object) [
+            return [
                 'success' => true,
-                'remittanceData' => (object) [
-                    'header'   => (object) $header,
-                    'titles'   => (object) $title,
-                    'trailler' => (object) $trailler
+                'remittanceData' => [
+                    'header'   => ($header),
+                    'titles'   => ($title),
+                    'trailler' => ($trailler)
                 ]
             ];
         } else {
-            return (object) ['success' => false, 'error' => 'Arquivo não possui header, registros do tipo 1 ou trailler'];
+            return ['success' => false, 'error' => 'Arquivo não possui header, registros do tipo 1 ou trailler'];
         }        
     }
 
