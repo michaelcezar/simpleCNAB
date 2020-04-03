@@ -106,7 +106,7 @@ class simpleCNAB {
                         'nomeEmpresa'                           => trim(mb_substr($this->cnabLine[$i],  46,  30)),
                         'numeroBanco'                           => trim(mb_substr($this->cnabLine[$i],  76,   3)),
                         'nomeBanco'                             => trim(mb_substr($this->cnabLine[$i],  79,  15)),
-                        'dataArquivo'                           => mb_substr($this->cnabLine[$i],       94,   6),
+                        'dataArquivo'                           => $this->convertDate(trim(mb_substr($this->cnabLine[$i],       94,   6))),
                         'branco1'                               => trim(mb_substr($this->cnabLine[$i], 100,   8)),
                         'identificacaoSistema'                  => trim(mb_substr($this->cnabLine[$i], 108,   2)),
                         'numeroSequencialRemessa'               => trim(mb_substr($this->cnabLine[$i], 110,   7)),
@@ -131,7 +131,7 @@ class simpleCNAB {
                         'percentualMulta'                       => ((float) mb_substr($this->cnabLine[$i],  66,   4)) / 100,
                         'identificacaoTituloBanco'              => trim(mb_substr($this->cnabLine[$i],      70,  11)),
                         'digitoAutoConferenciaNumeroBancario'   => mb_substr($this->cnabLine[$i],           81,   1),
-                        'descontoBonificacaoDia'                => mb_substr($this->cnabLine[$i],           82,  10),
+                        'descontoBonificacaoDia'                => ((float) mb_substr($this->cnabLine[$i],           82,  10)) / 100,
                         'condicaoEmissaoPapeletaCobranca'       => mb_substr($this->cnabLine[$i],           92,   1),
                         'emiteBoletoDebitoAutomatico'           => mb_substr($this->cnabLine[$i],           93,   1),
                         'identificacaoOperacaoBanco'            => trim(mb_substr($this->cnabLine[$i],      94,  10)),
@@ -140,17 +140,17 @@ class simpleCNAB {
                         'quantidadePagamentos'                  => mb_substr($this->cnabLine[$i],          106,   2),
                         'identificacaoOcorrencia'               => mb_substr($this->cnabLine[$i],          108,   2),
                         'numeroDocumento'                       => trim(mb_substr($this->cnabLine[$i],     110,  10)),
-                        'dataVencimento'                        => mb_substr($this->cnabLine[$i],          120,   6),
+                        'dataVencimento'                        => $this->convertDate(trim(mb_substr($this->cnabLine[$i],          120,   6))),
                         'valor'                                 => ((float) mb_substr($this->cnabLine[$i], 126,  13)) / 100,
                         'bancoEncarregadoCobranca'              => mb_substr($this->cnabLine[$i],          139,   3),
                         'agenciaDepositaria'                    => mb_substr($this->cnabLine[$i],          142,   5),
                         'especieTitulo'                         => mb_substr($this->cnabLine[$i],          147,   2),
                         'identificacao'                         => mb_substr($this->cnabLine[$i],          149,   1),
-                        'dataEmissao'                           => mb_substr($this->cnabLine[$i],          150,   6),
+                        'dataEmissao'                           => $this->convertDate(trim(mb_substr($this->cnabLine[$i],          150,   6))),
                         'primeiraInstrucao'                     => mb_substr($this->cnabLine[$i],          156,   2),
                         'segundaInstrucao'                      => mb_substr($this->cnabLine[$i],          158,   2),
                         'valorCobradoPorDiaAtraso'              => ((float) mb_substr($this->cnabLine[$i], 160,  13)) / 100,
-                        'dataLimiteDesconto'                    => mb_substr($this->cnabLine[$i],          173,   6),
+                        'dataLimiteDesconto'                    => $this->convertDate(trim(mb_substr($this->cnabLine[$i],          173,   6))),
                         'valorDesconto'                         => ((float) mb_substr($this->cnabLine[$i], 179,  13)) / 100,
                         'valorIof'                              => ((float) mb_substr($this->cnabLine[$i], 192,  13)) / 100,
                         'valorAbatimentoConcedidoOuCancelado'   => ((float) mb_substr($this->cnabLine[$i], 205,  13)) / 100,
@@ -173,9 +173,9 @@ class simpleCNAB {
                         $title[$idTit]["mensagem2"]                             = trim(mb_substr($this->cnabLine[$i],      81,  80));
                         $title[$idTit]["mensagem3"]                             = trim(mb_substr($this->cnabLine[$i],     161,  80));
                         $title[$idTit]["mensagem4"]                             = trim(mb_substr($this->cnabLine[$i],     241,  80));
-                        $title[$idTit]["dataLimiteConcessaoDesconto2"]          = mb_substr($this->cnabLine[$i],          321,   6);
+                        $title[$idTit]["dataLimiteConcessaoDesconto2"]          = $this->convertDate(trim(mb_substr($this->cnabLine[$i],          321,   6)));
                         $title[$idTit]["valorDesconto2"]                        = ((float) mb_substr($this->cnabLine[$i], 327,  13)) / 100;
-                        $title[$idTit]["dataLimiteConcessaoDesconto3"]          = mb_substr($this->cnabLine[$i],          340,   6);
+                        $title[$idTit]["dataLimiteConcessaoDesconto3"]          = $this->convertDate(trim(mb_substr($this->cnabLine[$i],          340,   6)));
                         $title[$idTit]["valorDesconto3"]                        = ((float) mb_substr($this->cnabLine[$i], 346,  13)) / 100;
                         $title[$idTit]["reservaR2"]                             = mb_substr($this->cnabLine[$i],          359,   7);
                         $title[$idTit]["carteiraR2"]                            = mb_substr($this->cnabLine[$i],          366,   3);
@@ -215,7 +215,7 @@ class simpleCNAB {
             }
         }
 
-        if( $header != '' and  $title != '' and $trailler != '' ){
+        if( sizeof($header) > 0 and  sizeof($title) > 0 and sizeof($trailler) > 0 ){
             return [
                 'success' => true,
                 'remittanceData' => [
@@ -238,6 +238,16 @@ class simpleCNAB {
     }
 
     public function writeReturnBradesco400(){
+        
+    }
+
+    public function convertDate($dateToConvert){
+        if($dateToConvert != '' and $dateToConvert != '000000'){
+            return (DateTime::createFromFormat('dmy', $dateToConvert))->format('Y-m-d');
+        } else {
+            return null;
+        }
+
         
     }
 }
