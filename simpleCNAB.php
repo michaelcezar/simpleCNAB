@@ -3,10 +3,10 @@
 class simpleCNAB {
     public $pathFile;
     public $cnabFile;
-    public $cnabType = 400; //240 | 400 
+    public $cnabType; 
     public $cnabLine;
     public $bankNumber;
-    public $optionType;// = 'readRemittance'; //readRemittance | writeRemittance | readReturn | writeReturn
+    public $optionType; //readRemittance | writeRemittance | readReturn | writeReturn
 
     public function getCNABFile(){
         if($this->cnabFile = fopen($this->pathFile, 'r')){
@@ -58,9 +58,18 @@ class simpleCNAB {
 
     public function getCNABBank(){
         $this->bankNumber = null;
-        $this->cnabLine   =[];
+        $this->cnabLine   = [];
         $this->cnabLine   = $this->getCNABLines();
-        if($this->cnabLine != ''){
+        if(sizeof($this->cnabLine) > 0){
+            //Set CNAB Type
+            if(strlen($this->cnabLine[0]) >= 400 and strlen($this->cnabLine[0]) < 443){
+                $this->cnabType = 400;
+            } else if(strlen($this->cnabLine[0]) >= 250 and strlen($this->cnabLine[0]) < 253){
+                $this->cnabType = 250;
+            } else {
+                $this->cnabType = strlen($this->cnabLine[0]);
+            }           
+            //Set CNAB Bank
             switch($this->cnabType){
                 case 240:
                     $this->bankNumber = mb_substr($this->cnabLine[0],0,3);
@@ -71,7 +80,7 @@ class simpleCNAB {
                     return ['success' => true, 'bankNumber' => $this->bankNumber, 'cnabType' => 400];
                 break;
                 default:
-                    return ['success' => false, 'error' => 'Tipo de CNAB não implementado'];
+                    return ['success' => false, 'error' => 'Tipo de CNAB não implementado '.$this->cnabType];
                 break;
             }
         } else {
@@ -116,6 +125,14 @@ class simpleCNAB {
                 break;
                 case "1": //Register type 1
                     $idTit++;
+
+                    //Set CPF or CNPJ
+                    if(mb_substr($this->cnabLine[$i],          218,   2) == '01'){
+                        $numeroInscricaoPagador = trim(mb_substr($this->cnabLine[$i],          223,  11));
+                    } else {
+                        $numeroInscricaoPagador = trim(mb_substr($this->cnabLine[$i],          220,  14));
+                    }
+
                     $title[$idTit] = [
                         'idTit'                                 => $idTit+1,
                         'identificacaoRegistroR1'               => mb_substr($this->cnabLine[$i],            0,   1),
@@ -155,7 +172,7 @@ class simpleCNAB {
                         'valorIof'                              => ((float) mb_substr($this->cnabLine[$i], 192,  13)) / 100,
                         'valorAbatimentoConcedidoOuCancelado'   => ((float) mb_substr($this->cnabLine[$i], 205,  13)) / 100,
                         'identificacaoTipoInscricaoPagador'     => mb_substr($this->cnabLine[$i],          218,   2),
-                        'numeroInscricaoPagador'                => mb_substr($this->cnabLine[$i],          220,  14),
+                        'numeroInscricaoPagador'                => $numeroInscricaoPagador,
                         'nomePagador'                           => trim(mb_substr($this->cnabLine[$i],     234,  40)),
                         'enderecoCompleto'                      => trim(mb_substr($this->cnabLine[$i],     274,  40)),
                         'primeiraMensagem'                      => trim(mb_substr($this->cnabLine[$i],     314,  12)),
@@ -247,7 +264,5 @@ class simpleCNAB {
         } else {
             return null;
         }
-
-        
     }
 }
