@@ -2,10 +2,6 @@
 
 class simpleCNAB {
     public $pathFile;
-    public $cnabFile;
-    public $cnabType; 
-    public $cnabLine;
-    public $bankNumber;
     public $optionType; //readRemittance | writeRemittance | readReturn | writeReturn
 
     public function getCNABFile(){
@@ -52,14 +48,12 @@ class simpleCNAB {
                 break;
             }
         } else {
-            return $getBankNumber->error;
+            return ['success' => false, 'error' =>$getBankNumber->error];
         }
     }
 
     public function getCNABBank(){
-        $this->bankNumber = null;
-        $this->cnabLine   = [];
-        $this->cnabLine   = $this->getCNABLines();
+        $this->cnabLine = $this->getCNABLines();
         if(sizeof($this->cnabLine) > 0){
             //Set CNAB Type
             if(strlen($this->cnabLine[0]) >= 400 and strlen($this->cnabLine[0]) < 443){
@@ -236,9 +230,9 @@ class simpleCNAB {
             return [
                 'success' => true,
                 'remittanceData' => [
-                    'header'   => ($header),
-                    'titles'   => ($title),
-                    'trailler' => ($trailler)
+                    'header'   => $header,
+                    'titles'   => $title,
+                    'trailler' => $trailler
                 ]
             ];
         } else {
